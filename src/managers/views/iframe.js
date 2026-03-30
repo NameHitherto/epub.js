@@ -7,6 +7,12 @@ import { Pane, Highlight, Underline } from "marks-pane";
 
 class IframeView {
 	constructor(section, options) {
+		const oldView = IframeView.ViewMap.get(section.href);
+		if (oldView) {
+			oldView.destroy();
+		}
+		IframeView.ViewMap.set(section.href, this);
+
 		this.settings = extend({
 			ignoreClass : "",
 			axis: undefined, //options.layout && options.layout.props.flow === "scrolled" ? "vertical" : "horizontal",
@@ -48,6 +54,7 @@ class IframeView {
 		this.highlights = {};
 		this.underlines = {};
 		this.marks = {};
+		this.loading = undefined;
 
 	}
 
@@ -382,7 +389,10 @@ class IframeView {
 
 
 	load(contents) {
-		var loading = new defer();
+		if (this.loading) {
+			this.loading.reject("cancel");
+		}
+		var loading = this.loading = new defer();
 		var loaded = loading.promise;
 
 		if(!this.iframe) {
@@ -801,6 +811,14 @@ class IframeView {
 	}
 
 	destroy() {
+		if (this.loading) {
+			this.loading.reject("cancel");
+			this.loading = undefined;
+		}
+
+		if (IframeView.ViewMap.get(this.section.href) === this) {
+			IframeView.ViewMap.delete(this.section.href);
+		}
 
 		for (let cfiRange in this.highlights) {
 			this.unhighlight(cfiRange);
@@ -847,5 +865,6 @@ class IframeView {
 }
 
 EventEmitter(IframeView.prototype);
+IframeView.ViewMap = new Map();
 
 export default IframeView;
